@@ -25,7 +25,6 @@ void loop()
 		if (len == 5 && buf[0] == 0x63 && buf[1] == 0x61 && buf[2] == 0x72 && buf[3] == 0x6c && buf[4] == 0x61)
 		{
 			BlePeerDevice peer = BLE.connect(scanResults[i].address);
-			delay(3000);
 			while (!peer.connected()){}
 
 			Serial.printlnf("successfully connected %02X:%02X:%02X:%02X:%02X:%02X!",
@@ -41,5 +40,5 @@ void loop()
 			}
 		}
 	}
-	delay(20000);
+	delay(60000);
 }
