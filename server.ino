@@ -26,26 +26,20 @@ void loop()
 		{
 			BlePeerDevice peer = BLE.connect(scanResults[i].address);
 			delay(3000);
-			if (peer.connected())
+			while (!peer.connected()){}
+
+			Serial.printlnf("successfully connected %02X:%02X:%02X:%02X:%02X:%02X!",
+							scanResults[i].address[0], scanResults[i].address[1], scanResults[i].address[2],
+							scanResults[i].address[3], scanResults[i].address[4], scanResults[i].address[5]);
+			// ...
+			if (peer.getCharacteristicByUUID(peerRealTimeSensorCharacteristic, "b4250401-fb4b-4746-b2b0-93f0e61122c6"))
 			{
-				Serial.printlnf("successfully connected %02X:%02X:%02X:%02X:%02X:%02X!",
-								scanResults[i].address[0], scanResults[i].address[1], scanResults[i].address[2],
-								scanResults[i].address[3], scanResults[i].address[4], scanResults[i].address[5]);
-				// ...
-				if (peer.getCharacteristicByUUID(peerRealTimeSensorCharacteristic, "b4250401-fb4b-4746-b2b0-93f0e61122c6"))
-				{
-					Serial.printlnf("Found LiveSensorDataCharacteristic - hooking up NOTIFY callback");
-					uint8_t val[1];
-					peerRealTimeSensorCharacteristic.setValue(val, sizeof(val));
-				}
-			}
-			else
-			{
-				Serial.printlnf("connection failed");
-				// ...
+				Serial.printlnf("Found LiveSensorDataCharacteristic - hooking up NOTIFY callback");
+				uint8_t val[1];
+				val[0] = 0xBB;
+				peerRealTimeSensorCharacteristic.setValue(val, sizeof(val));
 			}
 		}
 	}
-
-	delay(60000);
+	delay(20000);
 }
