@@ -4,6 +4,8 @@ BleCharacteristic peerLed;
 
 bool send_request = false;
 Vector<BlePeerDevice> peers;
+Vector<BleAddress> already_connected;
+
 uint8_t led_command[1];
 bool scan_network = true;
 
@@ -45,7 +47,7 @@ void loop()
       uint8_t buf[BLE_MAX_ADV_DATA_LEN];
       size_t len = scanResults[i].advertisingData.get(BleAdvertisingDataType::MANUFACTURER_SPECIFIC_DATA, buf, BLE_MAX_ADV_DATA_LEN);
 
-      if (len == 5 && buf[0] == 0x63 && buf[1] == 0x61 && buf[2] == 0x72 && buf[3] == 0x6c && buf[4] == 0x61)
+      if (!already_connected.contains(scanResults[i].address) && len == 5 && buf[0] == 0x63 && buf[1] == 0x61 && buf[2] == 0x72 && buf[3] == 0x6c && buf[4] == 0x61)
       {
         // discovered a peer
         Particle.publish(String::format("attempting connection to %02X:%02X:%02X:%02X:%02X:%02X!",
@@ -57,6 +59,8 @@ void loop()
         }
 
         peers.append(peer);
+        already_connected.append(scanResults[i].address);
+
         Particle.publish(String::format("successfully connected to %02X:%02X:%02X:%02X:%02X:%02X!",
                                         scanResults[i].address[0], scanResults[i].address[1], scanResults[i].address[2],
                                         scanResults[i].address[3], scanResults[i].address[4], scanResults[i].address[5]));
@@ -75,7 +79,6 @@ void loop()
     else
     {
       Particle.publish(String::format("Retrying - only registered %d peers", peers.size()));
-      peers.clear();
       scan_network = true;
     }
   }
