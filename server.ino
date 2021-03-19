@@ -67,16 +67,16 @@ void loop()
     {
       Particle.publish(String::format("Finished registering %d peers", peers.size()));
       scan_network = false;
+
+      //turn on all lights
+      led_command[0] = 0xFF;
+      send_request = true;
     }
     else
     {
       Particle.publish(String::format("Retrying - only registered %d peers", peers.size()));
       peers.clear();
       scan_network = true;
-
-      //turn on all lights
-      led_command[0] = 0xFF;
-      send_request = true;
     }
   }
 
