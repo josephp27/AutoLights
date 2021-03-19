@@ -5,6 +5,7 @@ BleCharacteristic peerLed;
 bool send_request = false;
 Vector<BlePeerDevice> peers;
 uint8_t led_command[1];
+bool scan_network = true;
 
 int ledToggle(String command)
 {
@@ -25,40 +26,60 @@ int ledToggle(String command)
   return send_request;
 }
 
-// turn off wifi and set led pin
 void setup()
 {
   Particle.function("led", ledToggle);
+  RGB.brightness(5);
+}
 
-  delay(10000);
-  BLE.setScanTimeout(50);
-  int count = BLE.scan(scanResults, SCAN_RESULT_MAX);
-
-  Particle.publish(String::format("%d ble found", count));
-  for (int i = 0; i < count; i++)
+void loop()
+{
+  if (scan_network)
   {
-    uint8_t buf[BLE_MAX_ADV_DATA_LEN];
-    size_t len = scanResults[i].advertisingData.get(BleAdvertisingDataType::MANUFACTURER_SPECIFIC_DATA, buf, BLE_MAX_ADV_DATA_LEN);
+    BLE.setScanTimeout(50);
+    int count = BLE.scan(scanResults, SCAN_RESULT_MAX);
 
-    if (len == 5 && buf[0] == 0x63 && buf[1] == 0x61 && buf[2] == 0x72 && buf[3] == 0x6c && buf[4] == 0x61)
+    Particle.publish(String::format("%d ble found", count));
+    for (int i = 0; i < count; i++)
     {
-      // discovered a peer
-      BlePeerDevice peer = BLE.connect(scanResults[i].address);
-      while (!peer.connected()){}
+      uint8_t buf[BLE_MAX_ADV_DATA_LEN];
+      size_t len = scanResults[i].advertisingData.get(BleAdvertisingDataType::MANUFACTURER_SPECIFIC_DATA, buf, BLE_MAX_ADV_DATA_LEN);
 
-      peers.append(peer);
-      Particle.publish(String::format("successfully connected to %02X:%02X:%02X:%02X:%02X:%02X!",
-                                      scanResults[i].address[0], scanResults[i].address[1], scanResults[i].address[2],
-                                      scanResults[i].address[3], scanResults[i].address[4], scanResults[i].address[5]));
+      if (len == 5 && buf[0] == 0x63 && buf[1] == 0x61 && buf[2] == 0x72 && buf[3] == 0x6c && buf[4] == 0x61)
+      {
+        // discovered a peer
+        Particle.publish(String::format("attempting connection to %02X:%02X:%02X:%02X:%02X:%02X!",
+                                        scanResults[i].address[0], scanResults[i].address[1], scanResults[i].address[2],
+                                        scanResults[i].address[3], scanResults[i].address[4], scanResults[i].address[5]));
+        BlePeerDevice peer;
+        while (!(peer = BLE.connect(scanResults[i].address)).connected())
+        {
+        }
+
+        peers.append(peer);
+        Particle.publish(String::format("successfully connected to %02X:%02X:%02X:%02X:%02X:%02X!",
+                                        scanResults[i].address[0], scanResults[i].address[1], scanResults[i].address[2],
+                                        scanResults[i].address[3], scanResults[i].address[4], scanResults[i].address[5]));
+      }
+    }
+
+    if (peers.size() == 3)
+    {
+      Particle.publish(String::format("Finished registering %d peers", peers.size()));
+      scan_network = false;
+    }
+    else
+    {
+      Particle.publish(String::format("Retrying - only registered %d peers", peers.size()));
+      peers.clear();
+      scan_network = true;
+
+      //turn on all lights
+      led_command[0] = 0xFF;
+      send_request = true;
     }
   }
 
-  Particle.publish(String::format("Finished registering %d peers", peers.size()));
-}
-
-// loop() runs over and over again, as quickly as it can execute.
-void loop()
-{
   if (send_request)
   {
     for (int i = 0; i < peers.size(); i++)
