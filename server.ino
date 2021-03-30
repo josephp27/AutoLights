@@ -71,15 +71,10 @@ void loop()
     {
       Particle.publish(String::format("Finished registering %d peers", peers.size()));
       scan_network = false;
-
-      //turn on all lights
-      led_command[0] = 0xFF;
-      send_request = true;
     }
     else
     {
       Particle.publish(String::format("Retrying - only registered %d peers", peers.size()));
-      scan_network = true;
     }
   }
 
@@ -89,7 +84,7 @@ void loop()
     {
       if (peers[i].getCharacteristicByUUID(peerLed, "b4250401-fb4b-4746-b2b0-93f0e61122c6"))
       {
-        Particle.publish("Found peerLed - hooking up NOTIFY callback");
+        Particle.publish("Found peerLed - sending command");
         peerLed.setValue(led_command, sizeof(led_command));
       }
     }
