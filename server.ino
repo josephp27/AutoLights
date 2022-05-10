@@ -8,6 +8,14 @@ Vector<BleAddress> already_connected;
 
 uint8_t led_command[1];
 bool scan_network = true;
+bool heartbeat = false;
+
+Timer timer(1000 * 60 * 60, run_heart_beat);
+
+void run_heart_beat()
+{
+    heartbeat = true;
+}
 
 int ledToggle(String command)
 {
@@ -31,11 +39,24 @@ int ledToggle(String command)
 void setup()
 {
   Particle.function("led", ledToggle);
+  timer.start();
   RGB.brightness(5);
 }
 
 void loop()
 {
+    if (heartbeat) {
+        Particle.publish("Heartbeat... Starting");
+        for (int i = 0; i < already_connected.size(); i++)
+        {
+            bool is_connected = peers[i].connected();
+            if (!is_connected) {
+                System.reset();
+            }
+        }
+        Particle.publish("Heartbeat... Passed");
+        heartbeat = false;
+    }
   if (scan_network)
   {
     BLE.setScanTimeout(50);
