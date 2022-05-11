@@ -93,12 +93,16 @@ void process_request()
 {
     for (int i = 0; i < connections.size(); i++)
     {
-        BlePeerDevice peer = BLE.connect(connections[i]);
+        BlePeerDevice peer;
+        while (!(peer = BLE.connect(connections[i])).connected())
+        {
+        }
         if (peer.getCharacteristicByUUID(peerLed, "b4250401-fb4b-4746-b2b0-93f0e61122c6"))
         {
             Particle.publish("Found peerLed - sending command");
             peerLed.setValue(led_command, sizeof(led_command));
         }
+        peer.disconnect();
     }
     send_request = false;
 }
