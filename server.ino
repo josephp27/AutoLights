@@ -13,14 +13,8 @@ Vector<BleAddress> blinds_connections;
 
 uint8_t led_command[1];
 bool scan_network = true;
-bool heartbeat = false;
 
-Timer timer(1000 * 60 * 60 * 24, run_heart_beat);
-
-void run_heart_beat()
-{
-    heartbeat = true;
-}
+const int MAX_TRIES = 10;
 
 int ledToggle(String command)
 {
@@ -49,22 +43,6 @@ int blinds(String command)
     return send_request_blinds;
 }
 
-void check_connection()
-{
-    Particle.publish("Heartbeat... Starting");
-    for (int i = 0; i < connections.size(); i++)
-    {
-        BlePeerDevice peer = BLE.connect(connections[i]);
-        if (!peer.connected())
-        {
-            System.reset();
-        }
-        peer.disconnect();
-    }
-    Particle.publish("Heartbeat... Passed");
-    heartbeat = false;
-}
-
 void connect()
 {
     BLE.setScanTimeout(50);
@@ -78,37 +56,22 @@ void connect()
 
         if (!connections.contains(scanResults[i].address) && len == 5 && buf[0] == 0x63 && buf[1] == 0x61 && buf[2] == 0x72 && buf[3] == 0x6c && buf[4] == 0x61)
         {
-            // discovered a peer
-            Particle.publish(String::format("attempting connection to %02X:%02X:%02X:%02X:%02X:%02X!",
-                                            scanResults[i].address[0], scanResults[i].address[1], scanResults[i].address[2],
-                                            scanResults[i].address[3], scanResults[i].address[4], scanResults[i].address[5]));
-
             connections.append(scanResults[i].address);
-
-            Particle.publish(String::format("successfully connected to %02X:%02X:%02X:%02X:%02X:%02X!",
-                                            scanResults[i].address[0], scanResults[i].address[1], scanResults[i].address[2],
-                                            scanResults[i].address[3], scanResults[i].address[4], scanResults[i].address[5]));
         } else if (!blinds_connections.contains(scanResults[i].address) && len == 5 && buf[0] == 0x63 && buf[1] == 0x61 && buf[2] == 0x72 && buf[3] == 0x6c && buf[4] == 0x62) {
-            Particle.publish(String::format("attempting connection to %02X:%02X:%02X:%02X:%02X:%02X!",
-                                            scanResults[i].address[0], scanResults[i].address[1], scanResults[i].address[2],
-                                            scanResults[i].address[3], scanResults[i].address[4], scanResults[i].address[5]));
-
             blinds_connections.append(scanResults[i].address);
-
-            Particle.publish(String::format("successfully connected to %02X:%02X:%02X:%02X:%02X:%02X!",
-                                            scanResults[i].address[0], scanResults[i].address[1], scanResults[i].address[2],
-                                            scanResults[i].address[3], scanResults[i].address[4], scanResults[i].address[5]));   
         }
     }
+    
+    int total_registerd_peers = connections.size() + blinds_connections.size();
 
-    if (connections.size() == 5)
+    if (total_registerd_peers == 5)
     {
-        Particle.publish(String::format("Finished registering %d peers", connections.size()));
+        Particle.publish(String::format("Finished registering %d peers", total_registerd_peers));
         scan_network = false;
     }
     else
     {
-        Particle.publish(String::format("Retrying - only registered %d peers", connections.size()));
+        Particle.publish(String::format("Retrying - only registered %d peers", total_registerd_peers));
     }
 }
 
@@ -118,7 +81,7 @@ void process_request()
     {
         BlePeerDevice peer;
         int tries = 0;
-        while (!(peer = BLE.connect(connections[i])).connected() && tries < 3)
+        while (!(peer = BLE.connect(connections[i])).connected() && tries < MAX_TRIES)
         {
             tries++;
         }
@@ -138,7 +101,7 @@ void process_blinds_request()
     {
         BlePeerDevice peer;
         int tries = 0;
-        while (!(peer = BLE.connect(blinds_connections[i])).connected() && tries < 3)
+        while (!(peer = BLE.connect(blinds_connections[i])).connected() && tries < MAX_TRIES)
         {
             tries++;
         }
@@ -156,16 +119,11 @@ void setup()
 {
     Particle.function("led", ledToggle);
     Particle.function("blinds", blinds);
-    timer.start();
     RGB.brightness(5);
 }
 
 void loop()
 {
-    if (heartbeat)
-    {
-        check_connection();
-    }
     if (scan_network)
     {
         connect();
