@@ -14,7 +14,7 @@ Vector<BleAddress> blinds_connections;
 uint8_t led_command[1];
 bool scan_network = true;
 
-const int MAX_TRIES = 10;
+const int MAX_TRIES = 20;
 
 int ledToggle(String command)
 {
@@ -77,41 +77,68 @@ void connect()
 
 void process_request()
 {
+    Vector<BlePeerDevice> peers;
+    
     for (int i = 0; i < connections.size(); i++)
     {
         BlePeerDevice peer;
         int tries = 0;
+        
         while (!(peer = BLE.connect(connections[i])).connected() && tries < MAX_TRIES)
         {
             tries++;
         }
-        if (peer.getCharacteristicByUUID(peerLed, "b4250401-fb4b-4746-b2b0-93f0e61122c6"))
+        if (peer.connected())
         {
+            peers.append(peer);
+        }
+    }
+       
+    for (int i = 0; i < peers.size(); i++) {
+        BlePeerDevice peer = peers[i];
+        
+        if (peer.getCharacteristicByUUID(peerLed, "b4250401-fb4b-4746-b2b0-93f0e61122c6")){
             Particle.publish("Found peerLed - sending command");
             peerLed.setValue(led_command, sizeof(led_command));
         }
+        
         peer.disconnect();
     }
+    
     send_request = false;
 }
 
 void process_blinds_request()
 {
+    Vector<BlePeerDevice> peers;
+    
     for (int i = 0; i < blinds_connections.size(); i++)
     {
         BlePeerDevice peer;
         int tries = 0;
+        
         while (!(peer = BLE.connect(blinds_connections[i])).connected() && tries < MAX_TRIES)
         {
             tries++;
         }
-        if (peer.getCharacteristicByUUID(blindsChar, "b4250402-fb4b-4746-b2b0-93f0e61122c6"))
+        if (peer.connected())
         {
+            peers.append(peer);
+        }
+    }
+        
+        
+    for (int i = 0; i < peers.size(); i++) {
+        BlePeerDevice peer = peers[i];
+        
+        if (peer.getCharacteristicByUUID(blindsChar, "b4250402-fb4b-4746-b2b0-93f0e61122c6")) {
             Particle.publish(String::format("Found blinds - sending command - turning by %d", turn_amount[0]));
             blindsChar.setValue(turn_amount, sizeof(turn_amount));
         }
+        
         peer.disconnect();
     }
+        
     send_request_blinds = false;
 }
 
